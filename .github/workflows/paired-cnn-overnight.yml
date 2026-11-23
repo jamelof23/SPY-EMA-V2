@@ -1,0 +1,43 @@
+name: Train paired SPY image CNNs
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/paired-cnn-overnight.yml"
+permissions:
+  contents: read
+concurrency:
+  group: paired-cnn-overnight
+  cancel-in-progress: false
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 210
+    env:
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+      HF_HUB_DISABLE_PROGRESS_BARS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CPU training dependencies
+        run: |
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "numpy<3" "pandas<3.0" "exchange-calendars==4.13.3" pillow pyarrow huggingface_hub scikit-learn
+      - name: Rebuild and audit the 117184 historical decision inputs
+        run: python -u src/build_paired_training_data.py work data/source/SPY_daily_2019_2025.csv
+      - name: Fit the three CNNs, comparing checkpoints on 2024
+        run: |
+          set -o pipefail
+          mkdir -p results
+          python -u src/train_paired_charts.py --data work/dataset --out results --epochs 4 | tee results/training.log
+      - name: Retain actual checkpoints, epoch logs and fixed 2025 predictions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paired-CNN-checkpoints-and-epochs
+          path: results/
+          if-no-files-found: ignore
+          retention-days: 7
