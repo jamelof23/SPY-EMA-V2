@@ -1,0 +1,52 @@
+name: Publish SPY v2 pre-2026 images
+
+"on":
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spy42-v2-images-v1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'jamelof23/SPY-EMA-V2' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch historical chart archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 4 --retry-all-errors \
+            'https://github.com/jamelof23/SPY/releases/download/spy42-data-2026-11-22-v1/SPY_42_dataset.zip' \
+            --output "$RUNNER_TEMP/spy42-original.zip"
+          echo "16a8f15d81ffeb71f1c96b51bbeb978b5bdba9a4c24ca469db8c94d60094e99d  $RUNNER_TEMP/spy42-original.zip" | sha256sum --check
+      - name: Package 1,498 train and development images (2026 excluded)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u src/build_release_images.py \
+            --source "$RUNNER_TEMP/spy42-original.zip" \
+            --output "$RUNNER_TEMP/SPY42_v2_trainval_images.zip"
+      - name: Publish release for Colab
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view spy42-v2-images-v1 --repo jamelof23/SPY-EMA-V2 >/dev/null 2>&1; then
+            echo 'Release tag exists; stopping rather than overwriting any published dataset.'
+            exit 1
+          fi
+          gh release create spy42-v2-images-v1 \
+            "$RUNNER_TEMP/SPY42_v2_trainval_images.zip" \
+            "$RUNNER_TEMP/dataset_metadata.json" \
+            --repo jamelof23/SPY-EMA-V2 \
+            --title 'SPY42 v2 train and 2025 validation images' \
+            --notes '1,498 full-resolution chart images, 2020-2025 only. No 2026 test data. Supervised target: SPY close in five sessions versus today close.'

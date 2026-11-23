@@ -1,0 +1,24 @@
+{
+  "forecast_horizon_trading_sessions": 5,
+  "label": "UP iff close[t+5] > close[t], DOWN iff close[t+5] < close[t]; ties excluded",
+  "input": "42 past daily candles with EMA8, EMA21 and volume; image pixels only",
+  "train": {
+    "count": 1253,
+    "direction_counts": {
+      "UP": 752,
+      "DOWN": 501
+    }
+  },
+  "validation": {
+    "count": 245,
+    "direction_counts": {
+      "UP": 155,
+      "DOWN": 90
+    }
+  },
+  "bear_pullback_asof_training_days": 72,
+  "bear_pullback_training_episodes_5day_separation": 25,
+  "bear_pullback_asof_validation_days": 9,
+  "test_2026": "NOT loaded, labelled, evaluated or written",
+  "source_sha256": "4e2045b50251b87619b406abcdee3697862a2d69cc18744075fc15683ab57c5d"
+}
