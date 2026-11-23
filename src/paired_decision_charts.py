@@ -163,10 +163,11 @@ def plot(d, data, bounds, rich=False, guides=()):
             y=int(py(v));d.line((x0,y,x1,y),fill=GRID,width=1);d.text((x1+8,y-10),f"{v:.2f}",font=font(17),fill=MUTED)
         for at in [0,10,20,30,41]:
             x=int(xx[at]);d.line((x,y0,x,y1),fill=GRID,width=1)
-        for level,tag,color in guides:
-            if np.isfinite(level) and lo < level < hi:
-                y=int(py(level))
-                for x in range(x0,x1-7,14):d.line((x,y,x+7,y),fill=color,width=1)
+    for level,tag,color in guides:
+        if np.isfinite(level) and lo < level < hi:
+            y=int(py(level))
+            dash=7 if rich else 2
+            for x in range(x0,x1-dash,2*dash):d.line((x,y,x+dash,y),fill=color,width=1)
     oy,hy,ly,cy,fy,sy=[py(data[:,i]) for i in (0,1,2,3,5,6)]
     volumes=vy(data[:,4])
     for j,x in enumerate(xx):
@@ -179,9 +180,9 @@ def plot(d, data, bounds, rich=False, guides=()):
     if rich:
         d.text((x0,price_bottom+11),"VOLUME",font=font(16),fill=MUTED)
 
-def compact(values):
+def compact(values,guides=()):
     image=Image.new("RGB",(168,96),BG)
-    plot(ImageDraw.Draw(image),values,(0,1,167,95))
+    plot(ImageDraw.Draw(image),values,(0,1,167,95),guides=guides)
     return image
 
 def rich_pair(daily,bars,pairs,decision):
@@ -227,8 +228,11 @@ def year_images(dest,year,daily,bars,pairs):
     with zipfile.ZipFile(temp,"w",compression=zipfile.ZIP_STORED,allowZip64=True) as z:
         for i in ids.daily_end.unique():
             z.writestr("daily/"+str(int(i))+".png",pngbytes(compact(da[i-41:i+1])))
-        for i in ids.intraday_end:
-            z.writestr("five_minute/"+str(int(i))+".png",pngbytes(compact(ba[i-41:i+1])))
+        for row in ids.itertuples():
+            i=row.intraday_end
+            guides=[(row.pm_high,"PM H","#8b76bd"),(row.pm_low,"PM L","#8b76bd"),
+                    (da[row.daily_end,3],"prior","#95a0ab")]
+            z.writestr("five_minute/"+str(int(i))+".png",pngbytes(compact(ba[i-41:i+1],guides)))
         z.writestr("pairs.csv",ids.to_csv())
     temp.replace(path)
     with zipfile.ZipFile(path) as z:
